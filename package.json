@@ -1,0 +1,22 @@
+{
+  "name": "conversor-sticker",
+  "version": "0.2.0",
+  "description": "Conversor de imagens, GIFs e vídeos em figurinhas WebP para o WhatsApp",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "ffmpeg-static": "^5.2.0",
+    "file-type": "^21.0.0",
+    "multer": "^2.0.2",
+    "sharp": "^0.34.3"
+  }
+}

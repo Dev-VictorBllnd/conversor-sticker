@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversor de Sticker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Conversor de Sticker</h1>
+    <p class="subtitle">Converta imagens, GIFs e vídeos em figurinhas para o WhatsApp.</p>
+
+    <section id="dropzone" class="dropzone">
+      <p>Arraste seu arquivo aqui</p>
+      <span>ou</span>
+      <label class="button" for="fileInput">Escolher arquivo</label>
+      <input id="fileInput" type="file" hidden>
+      <small>PNG • JPG • GIF • MP4 • WebM • WebP</small>
+    </section>
+
+    <section id="status" class="status hidden"></section>
+
+    <section id="result" class="result hidden">
+      <h2>Figurinha pronta!</h2>
+      <div class="preview-wrap">
+        <img id="preview" alt="Prévia da figurinha">
+      </div>
+      <div class="actions">
+        <button id="copyBtn">Copiar</button>
+        <a id="downloadBtn" class="button" download="sticker.webp">Baixar</a>
+        <button id="shareBtn">Compartilhar</button>
+      </div>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
