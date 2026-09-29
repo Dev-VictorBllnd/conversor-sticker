@@ -1,4 +1,4 @@
-const API_BASE = (window.APP_CONFIG?.API_BASE ?? '').replace(/\/$/, '');
+const API_BASE = 'https://conversor-sticker.onrender.com';
 
 const dropzone = document.querySelector('#dropzone');
 const fileInput = document.querySelector('#fileInput');

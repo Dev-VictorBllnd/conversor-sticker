@@ -15,99 +15,154 @@ const publicDir = path.resolve(__dirname, '..', 'public');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const FRONTEND_ORIGIN =
+  process.env.FRONTEND_ORIGIN ||
+  'https://dev-victorblnd.github.io';
+
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
-// Plano free do Render tem pouca RAM: evita cache e paralelismo do sharp.
+// Plano free do Render tem pouca RAM:
+// evita cache e paralelismo do Sharp.
 sharp.cache(false);
 sharp.concurrency(1);
 
-// Domínio da página no GitHub Pages, ex.: https://SEU-USUARIO.github.io
-const allowedOrigins = [process.env.FRONTEND_ORIGIN, 'http://localhost:3000'].filter(Boolean);
+// Origens permitidas
+const allowedOrigins = [
+  FRONTEND_ORIGIN,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+];
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_UPLOAD_BYTES }
-});
-
+// CORS
 app.use(cors({
   origin: allowedOrigins,
-  exposedHeaders: ['X-Sticker-Animated', 'X-Sticker-Size', 'X-Detected-Mime']
+  exposedHeaders: [
+    'X-Sticker-Animated',
+    'X-Sticker-Size',
+    'X-Detected-Mime'
+  ]
 }));
 
-// Serve a página no uso local (npm run dev). Em produção ela fica no GitHub Pages.
+// Serve a página no uso local.
+// Em produção, o frontend fica no GitHub Pages.
 app.use(express.static(publicDir));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'conversor-sticker' });
+  res.json({
+    ok: true,
+    service: 'conversor-sticker'
+  });
 });
 
-app.post('/api/stickers', upload.single('file'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_UPLOAD_BYTES
   }
+});
 
-  const { buffer, originalname } = req.file;
-
-  try {
-    const detected = await detectFile(buffer, originalname);
-
-    if (detected.kind === 'unsupported') {
-      return res.status(415).json({
-        error: 'Este arquivo não possui um formato visual compatível nesta versão.'
+app.post(
+  '/api/stickers',
+  upload.single('file'),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Nenhum arquivo enviado.'
       });
     }
 
-    let webp;
-    let animated = false;
+    const { buffer, originalname } = req.file;
 
-    if (detected.kind === 'static') {
-      webp = await convertStaticImage(buffer);
-    } else if (detected.kind === 'webp') {
-      const metadata = await sharp(buffer, { animated: true }).metadata();
+    try {
+      // Detecta o tipo real do arquivo
+      const detected = await detectFile(buffer, originalname);
 
-      if ((metadata.pages ?? 1) > 1) {
-        ({ buffer: webp } = await convertAnimated(buffer));
-        animated = true;
-      } else {
+      if (detected.kind === 'unsupported') {
+        return res.status(415).json({
+          error:
+            'Este arquivo não possui um formato visual compatível nesta versão.'
+        });
+      }
+
+      let webp;
+      let animated = false;
+
+      // Imagem estática
+      if (detected.kind === 'static') {
         webp = await convertStaticImage(buffer);
       }
-    } else {
-      ({ buffer: webp } = await convertAnimated(buffer));
-      animated = true;
-    }
 
-    // O WebP volta direto na resposta: nada é salvo em disco.
-    res.set({
-      'Content-Type': 'image/webp',
-      'Cache-Control': 'no-store',
-      'X-Sticker-Animated': String(animated),
-      'X-Sticker-Size': String(webp.length),
-      'X-Detected-Mime': detected.mime ?? ''
-    });
-    return res.send(webp);
-  } catch (error) {
-    if (error instanceof UserError) {
-      return res.status(error.status).json({ error: error.message });
-    }
+      // WebP: pode ser estático ou animado
+      else if (detected.kind === 'webp') {
+        const metadata = await sharp(buffer, {
+          animated: true
+        }).metadata();
 
-    console.error(error);
-    return res.status(500).json({ error: 'Falha ao converter o arquivo.' });
+        if ((metadata.pages ?? 1) > 1) {
+          ({ buffer: webp } = await convertAnimated(buffer));
+          animated = true;
+        } else {
+          webp = await convertStaticImage(buffer);
+        }
+      }
+
+      // GIF, MP4, WebM, MOV, AVI, MKV etc.
+      else {
+        ({ buffer: webp } = await convertAnimated(buffer));
+        animated = true;
+      }
+
+      // O WebP volta diretamente na resposta.
+      // Nada é salvo permanentemente no disco.
+      res.set({
+        'Content-Type': 'image/webp',
+        'Cache-Control': 'no-store',
+        'X-Sticker-Animated': String(animated),
+        'X-Sticker-Size': String(webp.length),
+        'X-Detected-Mime': detected.mime ?? ''
+      });
+
+      return res.send(webp);
+
+    } catch (error) {
+      if (error instanceof UserError) {
+        return res.status(error.status).json({
+          error: error.message
+        });
+      }
+
+      console.error(error);
+
+      return res.status(500).json({
+        error: 'Falha ao converter o arquivo.'
+      });
+    }
   }
-});
+);
 
-// Erros do multer (arquivo grande demais, etc.) em JSON.
+// Erros do Multer
+// Ex.: arquivo maior que 50 MB.
 app.use((error, _req, res, _next) => {
   if (error instanceof multer.MulterError) {
     const tooLarge = error.code === 'LIMIT_FILE_SIZE';
+
     return res.status(tooLarge ? 413 : 400).json({
-      error: tooLarge ? 'Arquivo muito grande. O limite é 50 MB.' : 'Falha ao receber o arquivo.'
+      error: tooLarge
+        ? 'Arquivo muito grande. O limite é 50 MB.'
+        : 'Falha ao receber o arquivo.'
     });
   }
 
   console.error(error);
-  return res.status(500).json({ error: 'Erro interno.' });
+
+  return res.status(500).json({
+    error: 'Erro interno.'
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+// Importante para o Render:
+// o servidor precisa escutar em 0.0.0.0.
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
