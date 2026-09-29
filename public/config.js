@@ -3,5 +3,5 @@
 window.APP_CONFIG = {
   API_BASE: ['localhost', '127.0.0.1'].includes(location.hostname)
     ? ''
-    : 'https://SEU-SERVICO.onrender.com'
+    : 'https://conversor-sticker.onrender.com'
 };
