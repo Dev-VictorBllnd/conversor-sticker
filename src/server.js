@@ -16,10 +16,6 @@ const publicDir = path.resolve(__dirname, '..', 'public');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const FRONTEND_ORIGIN =
-  process.env.FRONTEND_ORIGIN ||
-  'https://dev-victorblnd.github.io';
-
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 // Plano free do Render tem pouca RAM:
@@ -29,7 +25,7 @@ sharp.concurrency(1);
 
 // Origens permitidas
 const allowedOrigins = [
-  FRONTEND_ORIGIN,
+  'https://dev-victorblnd.github.io',
   'http://localhost:3000',
   'http://127.0.0.1:3000'
 ];
